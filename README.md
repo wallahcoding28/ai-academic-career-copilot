@@ -173,6 +173,9 @@ python -m venv .venv
 
 # Install required packages
 pip install -r requirements.txt
+
+# Return to project root
+cd ..
 ```
 
 #### macOS / Linux:
@@ -188,6 +191,9 @@ source .venv/bin/activate
 
 # Install required packages
 pip install -r requirements.txt
+
+# Return to project root
+cd ..
 ```
 
 ### 3. Frontend Setup
@@ -250,25 +256,25 @@ This creates `database/copilot.db` containing the necessary tables:
 
 ## Running the Application
 
-Running the application requires two active terminal sessions.
+Running the application requires two active terminal sessions, both operated from the **project root directory**.
 
 ### Terminal 1: Backend Server
 
 From the project root:
 
 ```powershell
-# Windows PowerShell
+# Windows PowerShell (from project root)
 .\backend\.venv\Scripts\Activate.ps1
-cd backend
-python app.py
+python backend/app.py
 ```
 
 ```bash
-# macOS / Linux
+# macOS / Linux (from project root)
 source backend/.venv/bin/activate
-cd backend
-python app.py
+python backend/app.py
 ```
+
+> **Working Directory Note:** Always run the backend server command from the project root. This ensures that relative path configuration (such as `DATABASE_PATH=database/copilot.db` in `.env`) resolves accurately to the root `database/` directory.
 
 The Flask API server will start at:
 - **API Server:** `http://127.0.0.1:5000`
