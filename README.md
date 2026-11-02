@@ -14,6 +14,7 @@ A full-stack, AI-powered web platform designed to support college students and e
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Core Modules](#core-modules)
 - [Technology Stack](#technology-stack)
 - [Project Architecture](#project-architecture)
@@ -29,6 +30,26 @@ A full-stack, AI-powered web platform designed to support college students and e
 - [Automated Testing & Verification](#automated-testing--verification)
 - [Limitations & Project Status](#limitations--project-status)
 - [License](#license)
+
+---
+
+## Screenshots
+
+### Public Landing Page
+![Public Landing Page](screenshots/landing-page.png)
+*Public landing page presenting core platform capabilities, architectural highlights, and student preparation workflows.*
+
+### Student Career & Academic Workspace (Dashboard)
+![Dashboard](screenshots/dashboard.png)
+*Central dashboard displaying active readiness milestones, diagnostic health checks, and module launchpads.*
+
+### AI Resume Diagnostics & Analyzer
+![Resume Analyzer](screenshots/resume-analyzer.png)
+*Multi-format resume analysis interface supporting PDF, DOCX, and TXT parsing with role benchmark targets.*
+
+### Technical Skill Gap Evaluation
+![Skill Gap Analyzer](screenshots/skill-gap-analyzer.png)
+*Skill gap analysis comparing student competencies against standardized engineering profiles to isolate high-priority learning paths.*
 
 ---
 
