@@ -131,7 +131,7 @@ Before running the application locally, ensure you have installed:
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/ai-academic-career-copilot.git
+git clone https://github.com/wallahcoding28/ai-academic-career-copilot.git
 cd ai-academic-career-copilot
 ```
 
