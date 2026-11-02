@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-muted: #e2e8f0;
+  --bg-hover: #f1f5f9;
+
+  --border-subtle: #f1f5f9;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
+}
+
+html.dark, [data-theme='dark'] {
+  color-scheme: dark;
+  --bg-page: #0b0f19;
+  --bg-surface: #111827;
+  --bg-surface-elevated: #1e293b;
+  --bg-subtle: #1e293b;
+  --bg-muted: #334155;
+  --bg-hover: #1f293d;
+
+  --border-subtle: #1e293b;
+  --border-default: #1f2937;
+  --border-strong: #374151;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+
+  --input-bg: #111827;
+  --input-border: #374151;
+  --input-text: #f8fafc;
+  --input-placeholder: #64748b;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  html.dark body {
+    background-color: var(--bg-page);
+    color: var(--text-secondary);
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background-color: #334155;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #475569;
+  }
+}
+
+/* =========================================================================
+   CENTRALIZED THEME ADAPTERS FOR EXISTING UTILITY CLASSES
+   Ensures complete, cohesive dark mode across cards, sidebars, headers,
+   modals, inputs, and tables without scattered component-level overrides.
+   ========================================================================= */
+
+/* Surface and Canvas Backgrounds */
+html.dark .bg-white {
+  background-color: var(--bg-surface);
+}
+html.dark .bg-white\/80 {
+  background-color: rgba(17, 24, 39, 0.85);
+}
+html.dark .bg-white\/90 {
+  background-color: rgba(17, 24, 39, 0.92);
+}
+html.dark .bg-slate-50 {
+  background-color: var(--bg-page);
+}
+html.dark .bg-slate-50\/50 {
+  background-color: rgba(17, 24, 39, 0.5);
+}
+html.dark .bg-slate-100 {
+  background-color: var(--bg-subtle);
+}
+html.dark .bg-slate-100\/70,
+html.dark .bg-slate-100\/80 {
+  background-color: var(--bg-surface-elevated);
+}
+html.dark .bg-slate-200 {
+  background-color: var(--bg-muted);
+}
+
+html.dark .bg-blue-50\/30,
+html.dark .bg-blue-50\/40,
+html.dark .bg-blue-50\/50,
+html.dark .bg-blue-50\/70 {
+  background-color: rgba(30, 58, 138, 0.3);
+}
+
+/* Borders and Dividers */
+html.dark .border-slate-100 {
+  border-color: var(--border-subtle);
+}
+html.dark .border-slate-200 {
+  border-color: var(--border-default);
+}
+html.dark .border-slate-300 {
+  border-color: var(--border-strong);
+}
+
+/* Typography and Contrast */
+html.dark .text-slate-900 {
+  color: var(--text-primary);
+}
+html.dark .text-slate-800 {
+  color: var(--text-primary);
+}
+html.dark .text-slate-700 {
+  color: var(--text-secondary);
+}
+html.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+html.dark .text-slate-500 {
+  color: var(--text-muted);
+}
+html.dark .text-slate-400 {
+  color: var(--text-subtle);
+}
+
+/* Interactive Hover States */
+html.dark .hover\:bg-slate-50:hover {
+  background-color: var(--bg-hover);
+}
+html.dark .hover\:bg-slate-100:hover {
+  background-color: var(--bg-hover);
+}
+html.dark .hover\:bg-slate-100\/80:hover {
+  background-color: var(--bg-hover);
+}
+html.dark .hover\:text-slate-900:hover {
+  color: #ffffff;
+}
+html.dark .hover\:text-slate-800:hover {
+  color: #ffffff;
+}
+html.dark .hover\:text-slate-700:hover {
+  color: #f1f5f9;
+}
+html.dark .hover\:text-slate-600:hover {
+  color: #e2e8f0;
+}
+html.dark .hover\:border-slate-300:hover {
+  border-color: var(--border-strong);
+}
+
+/* Form Controls & Inputs */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+html.dark select,
+html.dark textarea {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border-color: var(--input-border);
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
+html.dark select option {
+  background-color: #111827;
+  color: #f8fafc;
+}
+
+/* Status Badges, Pills & Indicators (Accessible WCAG AA Tinting) */
+html.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.35);
+}
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #6ee7b7;
+}
+html.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+html.dark .bg-rose-50 {
+  background-color: rgba(136, 19, 55, 0.35);
+}
+html.dark .text-rose-800,
+html.dark .text-rose-700 {
+  color: #fda4af;
+}
+html.dark .border-rose-200 {
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+html.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.35);
+}
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #fcd34d;
+}
+html.dark .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+html.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.35);
+}
+html.dark .text-blue-800,
+html.dark .text-blue-700 {
+  color: #93c5fd;
+}
+html.dark .border-blue-200 {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+html.dark .bg-indigo-50 {
+  background-color: rgba(49, 46, 129, 0.35);
+}
+html.dark .text-indigo-800,
+html.dark .text-indigo-700 {
+  color: #a5b4fc;
+}
+html.dark .border-indigo-200 {
+  border-color: rgba(99, 102, 241, 0.3);
+}
