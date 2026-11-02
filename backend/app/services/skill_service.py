@@ -97,10 +97,16 @@ class SkillService:
             try:
                 db = get_db()
                 cursor = db.cursor()
-                cursor.execute(
-                    "SELECT id, filename, raw_text, extracted_skills FROM resumes WHERE id = ?;",
-                    (resume_id,),
-                )
+                if user_id is not None:
+                    cursor.execute(
+                        "SELECT id, filename, raw_text, extracted_skills FROM resumes WHERE id = ? AND user_id = ?;",
+                        (resume_id, user_id),
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT id, filename, raw_text, extracted_skills FROM resumes WHERE id = ? AND user_id IS NULL;",
+                        (resume_id,),
+                    )
                 row = cursor.fetchone()
                 if row:
                     resume_filename = row["filename"] or f"resume_{resume_id}.pdf"
@@ -111,7 +117,7 @@ class SkillService:
                         except Exception:
                             candidate_skills = []
                 else:
-                    raise ValueError(f"Resume ID {resume_id} not found in database history.")
+                    raise ValueError(f"Resume ID {resume_id} not found in database history for the current user.")
             except Exception as e:
                 logger.error(f"Error fetching resume {resume_id}: {e}")
                 if "not found" in str(e).lower():
@@ -470,7 +476,7 @@ class SkillService:
                         r.filename as resume_filename
                     FROM skill_evaluations s
                     LEFT JOIN resumes r ON s.resume_id = r.id
-                    WHERE s.resume_id = ? AND (s.user_id = ? OR s.user_id IS NULL)
+                    WHERE s.resume_id = ? AND s.user_id = ?
                     ORDER BY s.created_at DESC
                     LIMIT 1;
                     """,
@@ -488,7 +494,7 @@ class SkillService:
                         r.filename as resume_filename
                     FROM skill_evaluations s
                     LEFT JOIN resumes r ON s.resume_id = r.id
-                    WHERE s.resume_id = ?
+                    WHERE s.resume_id = ? AND s.user_id IS NULL
                     ORDER BY s.created_at DESC
                     LIMIT 1;
                     """,

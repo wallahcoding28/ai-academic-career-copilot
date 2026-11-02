@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ResumeAnalysisResult, ResumeRecord, SkillGapResult } from '../types';
 import { fetchResumeById, fetchResumeHistory, fetchSkillEvaluationByResume } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface ResumeContextType {
   activeResumeId: number | null;
@@ -22,16 +23,16 @@ const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 const STORAGE_ACTIVE_RESUME_ID = 'copilot_active_resume_id';
 const STORAGE_ACTIVE_ROLE = 'copilot_active_role';
 
+const getStorageKey = (prefix: string, uid: number | null): string => {
+  return uid ? `${prefix}_u${uid}` : `${prefix}_guest`;
+};
+
 export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeResumeId, setActiveResumeId] = useState<number | null>(() => {
-    const saved = localStorage.getItem(STORAGE_ACTIVE_RESUME_ID);
-    return saved ? parseInt(saved, 10) : null;
-  });
+  const { user } = useAuth();
+  const currentUserId = user ? user.id : null;
 
-  const [activeTargetRole, setActiveTargetRoleState] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_ACTIVE_ROLE) || 'Full Stack Developer';
-  });
-
+  const [activeResumeId, setActiveResumeId] = useState<number | null>(null);
+  const [activeTargetRole, setActiveTargetRoleState] = useState<string>('Full Stack Developer');
   const [activeResumeAnalysis, setActiveResumeAnalysis] = useState<ResumeAnalysisResult | null>(null);
   const [activeSkillGapResult, setActiveSkillGapResult] = useState<SkillGapResult | null>(null);
   const [availableResumes, setAvailableResumes] = useState<ResumeRecord[]>([]);
@@ -39,17 +40,24 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const setActiveTargetRole = useCallback((role: string) => {
     setActiveTargetRoleState(role);
-    localStorage.setItem(STORAGE_ACTIVE_ROLE, role);
-  }, []);
+    try {
+      localStorage.setItem(getStorageKey(STORAGE_ACTIVE_ROLE, currentUserId), role);
+    } catch {
+      // Storage unavailable
+    }
+  }, [currentUserId]);
 
   const refreshAvailableResumes = useCallback(async () => {
     try {
       const res = await fetchResumeHistory();
       if (res.ok && res.data) {
         setAvailableResumes(res.data);
+      } else {
+        setAvailableResumes([]);
       }
     } catch (err) {
       console.error('Failed to load resume history:', err);
+      setAvailableResumes([]);
     }
   }, []);
 
@@ -59,9 +67,14 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const setActiveResume = useCallback((analysis: ResumeAnalysisResult | null) => {
     setActiveResumeAnalysis(analysis);
+    const storageKey = getStorageKey(STORAGE_ACTIVE_RESUME_ID, currentUserId);
     if (analysis && analysis.id) {
       setActiveResumeId(analysis.id);
-      localStorage.setItem(STORAGE_ACTIVE_RESUME_ID, String(analysis.id));
+      try {
+        localStorage.setItem(storageKey, String(analysis.id));
+      } catch {
+        // Storage unavailable
+      }
       if (analysis.target_role) {
         setActiveTargetRole(analysis.target_role);
       }
@@ -75,15 +88,20 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }).catch((e) => {
         console.warn('Could not fetch prior skill evaluation for resume:', e);
+        setActiveSkillGapResult(null);
       });
     } else {
       setActiveResumeId(null);
-      localStorage.removeItem(STORAGE_ACTIVE_RESUME_ID);
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // Storage unavailable
+      }
       setActiveSkillGapResult(null);
     }
     // Refresh history so any newly created resume is in the list
     refreshAvailableResumes();
-  }, [refreshAvailableResumes, setActiveTargetRole]);
+  }, [currentUserId, refreshAvailableResumes, setActiveTargetRole]);
 
   const selectResumeById = useCallback(async (resumeId: number): Promise<boolean> => {
     setIsLoadingActiveResume(true);
@@ -107,17 +125,39 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveResumeAnalysis(null);
     setActiveResumeId(null);
     setActiveSkillGapResult(null);
-    localStorage.removeItem(STORAGE_ACTIVE_RESUME_ID);
-  }, []);
+    try {
+      localStorage.removeItem(getStorageKey(STORAGE_ACTIVE_RESUME_ID, currentUserId));
+    } catch {
+      // Storage unavailable
+    }
+  }, [currentUserId]);
 
-  // Initial restoration on page load / mount
+  // Synchronize and re-initialize state when user identity changes (login, logout, account switch)
   useEffect(() => {
     let isMounted = true;
+    setIsLoadingActiveResume(true);
 
-    const initializeActiveResume = async () => {
-      setIsLoadingActiveResume(true);
+    // Immediately reset in-memory state so previous user data is never retained
+    setActiveResumeAnalysis(null);
+    setActiveResumeId(null);
+    setActiveSkillGapResult(null);
+    setAvailableResumes([]);
 
-      // 1. Fetch available resumes from history
+    // Restore user-specific role preference
+    const roleKey = getStorageKey(STORAGE_ACTIVE_ROLE, currentUserId);
+    try {
+      const savedRole = localStorage.getItem(roleKey);
+      if (savedRole && isMounted) {
+        setActiveTargetRoleState(savedRole);
+      } else if (isMounted) {
+        setActiveTargetRoleState('Full Stack Developer');
+      }
+    } catch {
+      // Ignore localStorage error
+    }
+
+    const initializeForUser = async () => {
+      // 1. Fetch available resumes scoped to the current user
       let latestResumes: ResumeRecord[] = [];
       try {
         const histRes = await fetchResumeHistory();
@@ -128,36 +168,73 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }
       } catch (e) {
-        console.error('Error fetching resume history on mount:', e);
+        console.error('Error fetching resume history on user change:', e);
       }
 
-      // 2. Identify target resume ID to restore
-      const savedId = localStorage.getItem(STORAGE_ACTIVE_RESUME_ID);
-      let targetId: number | null = savedId ? parseInt(savedId, 10) : null;
+      // If user has NO resumes, ensure empty state and stop loading
+      if (latestResumes.length === 0) {
+        if (isMounted) {
+          setActiveResumeId(null);
+          setActiveResumeAnalysis(null);
+          setActiveSkillGapResult(null);
+          setIsLoadingActiveResume(false);
+        }
+        try {
+          localStorage.removeItem(getStorageKey(STORAGE_ACTIVE_RESUME_ID, currentUserId));
+        } catch {
+          // Ignore
+        }
+        return;
+      }
 
-      // If no ID was saved in localStorage, but history has resumes, restore the latest one
+      // 2. Identify target resume ID to restore for this user
+      const resumeStorageKey = getStorageKey(STORAGE_ACTIVE_RESUME_ID, currentUserId);
+      let targetId: number | null = null;
+      try {
+        const savedId = localStorage.getItem(resumeStorageKey);
+        if (savedId) {
+          const parsed = parseInt(savedId, 10);
+          // Confirm saved ID actually belongs to this user's available resumes
+          if (latestResumes.some((r) => r.id === parsed)) {
+            targetId = parsed;
+          }
+        }
+      } catch {
+        // Ignore
+      }
+
+      // Default to latest resume if no valid saved ID
       if (!targetId && latestResumes.length > 0) {
         targetId = latestResumes[0].id;
       }
 
-      if (targetId) {
+      if (targetId && isMounted) {
         try {
           const res = await fetchResumeById(targetId);
           if (res.ok && res.data && isMounted) {
             setActiveResumeAnalysis(res.data);
             setActiveResumeId(res.data.id);
-            localStorage.setItem(STORAGE_ACTIVE_RESUME_ID, String(res.data.id));
+            try {
+              localStorage.setItem(resumeStorageKey, String(res.data.id));
+            } catch {
+              // Ignore
+            }
 
             // Also check for prior skill gap evaluation
             if (res.data.id) {
               const skillRes = await fetchSkillEvaluationByResume(res.data.id);
               if (skillRes.ok && skillRes.data && isMounted) {
                 setActiveSkillGapResult(skillRes.data);
+              } else if (isMounted) {
+                setActiveSkillGapResult(null);
               }
             }
           } else if (isMounted) {
-            // Target ID was not found (e.g. deleted or stale)
-            localStorage.removeItem(STORAGE_ACTIVE_RESUME_ID);
+            try {
+              localStorage.removeItem(resumeStorageKey);
+            } catch {
+              // Ignore
+            }
           }
         } catch (err) {
           console.error(`Failed to restore active resume ${targetId}:`, err);
@@ -169,12 +246,12 @@ export const ResumeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-    initializeActiveResume();
+    initializeForUser();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentUserId]);
 
   return (
     <ResumeContext.Provider
@@ -205,4 +282,3 @@ export const useResume = (): ResumeContextType => {
   }
   return context;
 };
-

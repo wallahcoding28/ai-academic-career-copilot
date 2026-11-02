@@ -372,7 +372,7 @@ class ResumeService:
                     """
                     SELECT id, filename, file_size, score, raw_text, extracted_skills, feedback_json, created_at, user_id
                     FROM resumes
-                    WHERE id = ? AND (user_id = ? OR user_id IS NULL);
+                    WHERE id = ? AND user_id = ?;
                     """,
                     (resume_id, user_id),
                 )
@@ -381,7 +381,7 @@ class ResumeService:
                     """
                     SELECT id, filename, file_size, score, raw_text, extracted_skills, feedback_json, created_at, user_id
                     FROM resumes
-                    WHERE id = ?;
+                    WHERE id = ? AND user_id IS NULL;
                     """,
                     (resume_id,),
                 )

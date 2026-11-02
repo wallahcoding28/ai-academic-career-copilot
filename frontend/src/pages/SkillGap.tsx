@@ -87,6 +87,10 @@ export const SkillGap: React.FC = () => {
         if (isMounted) {
           setResumes(latestResumes);
         }
+      } else if (isMounted) {
+        setResumes([]);
+        setSelectedResumeId(null);
+        setResult(null);
       }
       if (isMounted) setIsLoadingResumes(false);
 
@@ -102,11 +106,17 @@ export const SkillGap: React.FC = () => {
             if (isMounted && priorEval.ok && priorEval.data) {
               setResult(priorEval.data);
               setActiveSkillGap(priorEval.data);
+            } else if (isMounted) {
+              setResult(null);
             }
           } catch (e) {
             console.warn('Could not load initial skill evaluation:', e);
+            if (isMounted) setResult(null);
           }
         }
+      } else if (isMounted) {
+        setSelectedResumeId(null);
+        setResult(null);
       }
     };
 
@@ -117,12 +127,18 @@ export const SkillGap: React.FC = () => {
     };
   }, [activeResumeId, activeSkillGapResult, activeTargetRole, setActiveSkillGap]);
 
-  // Synchronize when activeSkillGapResult changes in context
+  // Synchronize when context state changes
   useEffect(() => {
-    if (activeSkillGapResult && !result) {
-      setResult(activeSkillGapResult);
-    }
-  }, [activeSkillGapResult, result]);
+    setResult(activeSkillGapResult);
+  }, [activeSkillGapResult]);
+
+  useEffect(() => {
+    setSelectedResumeId(activeResumeId);
+  }, [activeResumeId]);
+
+  useEffect(() => {
+    setResumes(availableResumes);
+  }, [availableResumes]);
 
   // When user selects a different resume, check if a prior evaluation exists for it
   const handleSelectResume = async (resumeId: number) => {

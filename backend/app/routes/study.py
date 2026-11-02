@@ -182,10 +182,12 @@ def toggle_session(plan_id: int, session_id: int):
             )
 
         is_completed = bool(body["is_completed"])
+        user_id = get_current_user_id()
         result = StudyPlannerService.toggle_session_completion(
             plan_id=plan_id,
             session_id=session_id,
             is_completed=is_completed,
+            user_id=user_id,
         )
         return success_response(
             data=result,

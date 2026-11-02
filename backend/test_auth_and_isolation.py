@@ -379,6 +379,115 @@ class AuthAndIsolationTestCase(unittest.TestCase):
         })
         self.assertEqual(login_res.status_code, 401)
 
+    def test_12_regression_account_switch_and_tampered_id_isolation(self):
+        """
+        Regression Test for Bug: Resume and Skill Gap data shared across user accounts.
+        Verifies:
+        1. User A uploads resume and gets Skill Gap results.
+        2. User B logs in and sees empty Resume and Skill Gap endpoints.
+        3. User B CANNOT access User A's data by querying record ID:
+           - GET /api/resume/{user_a_resume_id} returns 404 for User B.
+           - GET /api/skills/evaluation-by-resume/{user_a_resume_id} returns data: null for User B.
+           - POST /api/skills/evaluate with resume_id={user_a_resume_id} fails (400/404) for User B.
+           - POST /api/interview/generate with resume_id={user_a_resume_id} fails (400/404) for User B.
+           - POST /api/study-planner/generate with resume_id={user_a_resume_id} fails (400/404) for User B.
+        4. User A logs back in and still sees their own data:
+           - User A gets their resume by ID (200).
+           - User A gets their prior skill evaluation by resume ID (200).
+           - User A sees 1 resume and 1 skill evaluation in history.
+        """
+        # Create User A client
+        client_a = self.app.test_client()
+        signup_a = client_a.post("/api/auth/signup", json={
+            "name": "User Alpha",
+            "email": "alpha@university.edu",
+            "password": "PasswordAlpha123!",
+        })
+        self.assertEqual(signup_a.status_code, 201)
+
+        # 1. User A uploads resume
+        res_a = client_a.post("/api/resume/analyze", json={
+            "text": "Alpha is a skilled React and TypeScript frontend engineer with deep Redux expertise.",
+            "target_role": "Frontend Engineer",
+            "filename": "alpha_resume.txt",
+        })
+        self.assertEqual(res_a.status_code, 200)
+        resume_a_id = res_a.get_json()["data"]["id"]
+
+        # User A gets Skill Gap result
+        skill_a = client_a.post("/api/skills/evaluate", json={
+            "target_role": "Frontend Engineer",
+            "resume_id": resume_a_id,
+        })
+        self.assertEqual(skill_a.status_code, 200)
+
+        # 2. User B signs up and logs in
+        client_b = self.app.test_client()
+        signup_b = client_b.post("/api/auth/signup", json={
+            "name": "User Beta",
+            "email": "beta@university.edu",
+            "password": "PasswordBeta123!",
+        })
+        self.assertEqual(signup_b.status_code, 201)
+
+        # User B queries history: must be empty
+        b_resumes = client_b.get("/api/resume/history").get_json()["data"]
+        self.assertEqual(len(b_resumes), 0, "Brand-new User B must see 0 resumes!")
+
+        b_skills = client_b.get("/api/skills/history").get_json()["data"]
+        self.assertEqual(len(b_skills), 0, "Brand-new User B must see 0 skill gap results!")
+
+        # 3. User B cannot access User A's data by ID tampering
+        get_b_resume = client_b.get(f"/api/resume/{resume_a_id}")
+        self.assertEqual(get_b_resume.status_code, 404, "User B must not fetch User A's resume by ID")
+
+        get_b_eval = client_b.get(f"/api/skills/evaluation-by-resume/{resume_a_id}")
+        self.assertEqual(get_b_eval.status_code, 200)
+        self.assertEqual(get_b_eval.get_json().get("data"), {}, "User B must not see User A's prior skill evaluation")
+        self.assertEqual(get_b_eval.get_json().get("message"), "No prior evaluation found for this resume.")
+
+        tamper_skill = client_b.post("/api/skills/evaluate", json={
+            "target_role": "Frontend Engineer",
+            "resume_id": resume_a_id,
+        })
+        self.assertIn(tamper_skill.status_code, [400, 404], "User B must not evaluate User A's resume")
+
+        tamper_interview = client_b.post("/api/interview/generate", json={
+            "target_role": "Frontend Engineer",
+            "difficulty": "Intermediate",
+            "question_focus": "Mixed / Balanced",
+            "question_count": 5,
+            "context_source": "resume",
+            "resume_id": resume_a_id,
+        })
+        self.assertIn(tamper_interview.status_code, [400, 404], "User B must not generate interview from User A's resume")
+
+        tamper_study = client_b.post("/api/study-planner/generate", json={
+            "goal": "Skill Development",
+            "topics": ["React"],
+            "daily_hours": 1.5,
+            "horizon_weeks": 2,
+            "context_source": "resume",
+            "resume_id": resume_a_id,
+        })
+        self.assertIn(tamper_study.status_code, [400, 404], "User B must not generate study plan from User A's resume")
+
+        # 4. User A logs in and verifies their data is intact
+        get_a_resume = client_a.get(f"/api/resume/{resume_a_id}")
+        self.assertEqual(get_a_resume.status_code, 200)
+        self.assertEqual(get_a_resume.get_json()["data"]["id"], resume_a_id)
+
+        get_a_eval = client_a.get(f"/api/skills/evaluation-by-resume/{resume_a_id}")
+        self.assertEqual(get_a_eval.status_code, 200)
+        self.assertIsNotNone(get_a_eval.get_json().get("data"))
+
+        a_history = client_a.get("/api/resume/history").get_json()["data"]
+        self.assertEqual(len(a_history), 1)
+        self.assertEqual(a_history[0]["id"], resume_a_id)
+
+        a_skills = client_a.get("/api/skills/history").get_json()["data"]
+        self.assertEqual(len(a_skills), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

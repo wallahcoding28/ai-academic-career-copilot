@@ -106,6 +106,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await logoutUser();
     } finally {
       setUser(null);
+      try {
+        localStorage.removeItem('copilot_active_resume_id');
+        localStorage.removeItem('copilot_active_role');
+      } catch {
+        // Storage unavailable
+      }
     }
   };
 

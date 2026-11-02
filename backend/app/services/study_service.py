@@ -485,7 +485,7 @@ class StudyPlannerService:
             raise ValueError(err)
 
         context_data = cls._resolve_context(
-            context_source, skill_gap_id, interview_session_id, resume_id
+            context_source, skill_gap_id, interview_session_id, resume_id, user_id=user_id
         )
 
         sessions, gen_mode = cls.generate_plan_sessions(
@@ -642,12 +642,21 @@ class StudyPlannerService:
         )
 
     @staticmethod
-    def toggle_session_completion(plan_id: int, session_id: int, is_completed: bool) -> Dict[str, Any]:
+    def toggle_session_completion(plan_id: int, session_id: int, is_completed: bool, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Atomically toggles a study session's completion state and recalculates plan totals.
         """
         db = get_db()
         cursor = db.cursor()
+
+        if user_id is not None:
+            cursor.execute("SELECT id FROM study_plans WHERE id = ? AND user_id = ?;", (plan_id, user_id))
+            if not cursor.fetchone():
+                raise ValueError(f"Plan {plan_id} not found or access denied for this user.")
+        else:
+            cursor.execute("SELECT id FROM study_plans WHERE id = ? AND user_id IS NULL;", (plan_id,))
+            if not cursor.fetchone():
+                raise ValueError(f"Plan {plan_id} not found or access denied.")
 
         cursor.execute(
             "SELECT id, plan_id FROM study_sessions WHERE id = ? AND plan_id = ?;",
@@ -715,8 +724,12 @@ class StudyPlannerService:
         if not plan_row:
             return None
 
-        if user_id is not None and plan_row["user_id"] is not None and plan_row["user_id"] != user_id:
-            return None
+        if user_id is not None:
+            if plan_row["user_id"] != user_id:
+                return None
+        else:
+            if plan_row["user_id"] is not None:
+                return None
 
         cursor.execute(
             "SELECT * FROM study_sessions WHERE plan_id = ? ORDER BY sequence_order ASC;",
@@ -987,6 +1000,7 @@ class StudyPlannerService:
         skill_gap_id: Optional[int],
         interview_session_id: Optional[int],
         resume_id: Optional[int],
+        user_id: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Resolves specific database records into a clean context dictionary."""
         db = get_db()
@@ -994,16 +1008,26 @@ class StudyPlannerService:
 
         if context_source == "skill_gap":
             if skill_gap_id:
-                cursor.execute(
-                    "SELECT * FROM skill_evaluations WHERE id = ?;", (skill_gap_id,)
-                )
+                if user_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM skill_evaluations WHERE id = ? AND user_id = ?;", (skill_gap_id, user_id)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM skill_evaluations WHERE id = ? AND user_id IS NULL;", (skill_gap_id,)
+                    )
                 row = cursor.fetchone()
                 if not row:
-                    raise ValueError(f"Skill Gap ID {skill_gap_id} was not found in database history.")
+                    raise ValueError(f"Skill Gap ID {skill_gap_id} was not found in database history for this user.")
             else:
-                cursor.execute(
-                    "SELECT * FROM skill_evaluations ORDER BY id DESC LIMIT 1;"
-                )
+                if user_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM skill_evaluations WHERE user_id = ? ORDER BY id DESC LIMIT 1;", (user_id,)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM skill_evaluations WHERE user_id IS NULL ORDER BY id DESC LIMIT 1;"
+                    )
                 row = cursor.fetchone()
             if row:
                 raw_missing = json.loads(row["missing_skills"] or "[]")
@@ -1020,17 +1044,28 @@ class StudyPlannerService:
 
         elif context_source == "interview":
             if interview_session_id:
-                cursor.execute(
-                    "SELECT * FROM interview_sessions WHERE id = ?;",
-                    (interview_session_id,),
-                )
+                if user_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM interview_sessions WHERE id = ? AND user_id = ?;",
+                        (interview_session_id, user_id),
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM interview_sessions WHERE id = ? AND user_id IS NULL;",
+                        (interview_session_id,),
+                    )
                 row = cursor.fetchone()
                 if not row:
-                    raise ValueError(f"Interview session ID {interview_session_id} was not found in database history.")
+                    raise ValueError(f"Interview session ID {interview_session_id} was not found in database history for this user.")
             else:
-                cursor.execute(
-                    "SELECT * FROM interview_sessions ORDER BY id DESC LIMIT 1;"
-                )
+                if user_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM interview_sessions WHERE user_id = ? ORDER BY id DESC LIMIT 1;", (user_id,)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM interview_sessions WHERE user_id IS NULL ORDER BY id DESC LIMIT 1;"
+                    )
                 row = cursor.fetchone()
             if row:
                 return {
@@ -1043,12 +1078,18 @@ class StudyPlannerService:
 
         elif context_source == "resume":
             if resume_id:
-                cursor.execute("SELECT * FROM resumes WHERE id = ?;", (resume_id,))
+                if user_id is not None:
+                    cursor.execute("SELECT * FROM resumes WHERE id = ? AND user_id = ?;", (resume_id, user_id))
+                else:
+                    cursor.execute("SELECT * FROM resumes WHERE id = ? AND user_id IS NULL;", (resume_id,))
                 row = cursor.fetchone()
                 if not row:
-                    raise ValueError(f"Resume ID {resume_id} was not found in database history.")
+                    raise ValueError(f"Resume ID {resume_id} was not found in database history for this user.")
             else:
-                cursor.execute("SELECT * FROM resumes ORDER BY id DESC LIMIT 1;")
+                if user_id is not None:
+                    cursor.execute("SELECT * FROM resumes WHERE user_id = ? ORDER BY id DESC LIMIT 1;", (user_id,))
+                else:
+                    cursor.execute("SELECT * FROM resumes WHERE user_id IS NULL ORDER BY id DESC LIMIT 1;")
                 row = cursor.fetchone()
             if row:
                 return {

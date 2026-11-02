@@ -694,13 +694,13 @@ class InterviewService:
             if not resume_id:
                 raise ValueError("resume_id is required when context_source is 'resume'.")
             context_source = "resume"
-            context_data = cls._resolve_resume_context(resume_id)
+            context_data = cls._resolve_resume_context(resume_id, user_id=user_id)
 
         elif context_source == "skill_gap" or (skill_gap_id and context_source != "resume"):
             if not skill_gap_id:
                 raise ValueError("skill_gap_id is required when context_source is 'skill_gap'.")
             context_source = "skill_gap"
-            context_data = cls._resolve_skill_gap_context(skill_gap_id)
+            context_data = cls._resolve_skill_gap_context(skill_gap_id, user_id=user_id)
 
         # 3. Dual-Engine Generation Execution
         generation_mode = "deterministic_engine"
@@ -792,17 +792,23 @@ class InterviewService:
         }
 
     @classmethod
-    def _resolve_resume_context(cls, resume_id: int) -> Dict[str, Any]:
+    def _resolve_resume_context(cls, resume_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Loads verified skills and metadata from SQLite resumes table."""
         db = get_db()
         cursor = db.cursor()
-        cursor.execute(
-            "SELECT id, filename, extracted_skills, raw_text FROM resumes WHERE id = ?;",
-            (resume_id,),
-        )
+        if user_id is not None:
+            cursor.execute(
+                "SELECT id, filename, extracted_skills, raw_text FROM resumes WHERE id = ? AND user_id = ?;",
+                (resume_id, user_id),
+            )
+        else:
+            cursor.execute(
+                "SELECT id, filename, extracted_skills, raw_text FROM resumes WHERE id = ? AND user_id IS NULL;",
+                (resume_id,),
+            )
         row = cursor.fetchone()
         if not row:
-            raise ValueError(f"Resume ID {resume_id} not found in database history.")
+            raise ValueError(f"Resume ID {resume_id} not found in database history for the current user.")
 
         matched_skills: List[str] = []
         if row["extracted_skills"]:
@@ -819,17 +825,23 @@ class InterviewService:
         }
 
     @classmethod
-    def _resolve_skill_gap_context(cls, skill_gap_id: int) -> Dict[str, Any]:
+    def _resolve_skill_gap_context(cls, skill_gap_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Loads detected gaps and coverage from SQLite skill_evaluations table."""
         db = get_db()
         cursor = db.cursor()
-        cursor.execute(
-            "SELECT id, target_role, missing_skills, adjacent_skills, core_coverage FROM skill_evaluations WHERE id = ?;",
-            (skill_gap_id,),
-        )
+        if user_id is not None:
+            cursor.execute(
+                "SELECT id, target_role, missing_skills, adjacent_skills, core_coverage FROM skill_evaluations WHERE id = ? AND user_id = ?;",
+                (skill_gap_id, user_id),
+            )
+        else:
+            cursor.execute(
+                "SELECT id, target_role, missing_skills, adjacent_skills, core_coverage FROM skill_evaluations WHERE id = ? AND user_id IS NULL;",
+                (skill_gap_id,),
+            )
         row = cursor.fetchone()
         if not row:
-            raise ValueError(f"Skill Gap evaluation ID {skill_gap_id} not found in database history.")
+            raise ValueError(f"Skill Gap evaluation ID {skill_gap_id} not found in database history for the current user.")
 
         missing_names: List[str] = []
         if row["missing_skills"]:

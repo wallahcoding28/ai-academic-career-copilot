@@ -33,8 +33,11 @@ import {
   ResumeRecord,
   SkillGapHistoryRecord,
 } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export const InterviewGenerator: React.FC = () => {
+  const { user } = useAuth();
+  const questionsStorageKey = user ? `copilot_saved_questions_u${user.id}` : 'copilot_saved_questions_guest';
   const [searchParams] = useSearchParams();
   const urlSessionId = searchParams.get('sessionId');
 
@@ -129,9 +132,11 @@ export const InterviewGenerator: React.FC = () => {
 
         // Load saved bookmarks from localStorage
         try {
-          const stored = localStorage.getItem('copilot_saved_questions');
+          const stored = localStorage.getItem(questionsStorageKey);
           if (stored) {
             setSavedQuestions(JSON.parse(stored));
+          } else {
+            setSavedQuestions({});
           }
         } catch {
           // Ignore localStorage read errors
@@ -211,7 +216,7 @@ export const InterviewGenerator: React.FC = () => {
     setSavedQuestions((prev) => {
       const updated = { ...prev, [questionText]: !prev[questionText] };
       try {
-        localStorage.setItem('copilot_saved_questions', JSON.stringify(updated));
+        localStorage.setItem(questionsStorageKey, JSON.stringify(updated));
       } catch {
         // Ignore localStorage error
       }
