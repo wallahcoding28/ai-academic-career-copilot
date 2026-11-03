@@ -353,7 +353,7 @@ The application is structured for cloud hosting using a decoupled architecture:
 2. Configure the build and start settings:
    - **Environment:** `Python 3`
    - **Build Command:** `pip install -r backend/requirements.txt`
-   - **Start Command:** `python database/init_db.py && gunicorn --chdir backend "app:app"`
+   - **Start Command:** `python database/init_db.py && gunicorn --chdir backend "app:create_app()"`
 3. Add environment variables in the Render dashboard:
    - `FLASK_ENV`: `production`
    - `SECRET_KEY`: *(Generate a secure 32-byte secret key, e.g. using `python -c "import secrets; print(secrets.token_hex(32))"`)*
