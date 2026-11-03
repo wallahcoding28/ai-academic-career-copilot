@@ -8,12 +8,44 @@
 [![Vite 6](https://img.shields.io/badge/Vite-6-purple.svg)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg)](https://tailwindcss.com/)
 
+🚀 **Live Demo:** [https://ai-academic-career-copilot.vercel.app/](https://ai-academic-career-copilot.vercel.app/)<br>
+📡 **Live Backend Health:** [https://ai-academic-career-copilot.onrender.com/api/health](https://ai-academic-career-copilot.onrender.com/api/health)
+
 A full-stack, AI-powered web platform designed to support college students and early-career software developers in academic planning and technical career readiness. AI Academic & Career Copilot consolidates multi-format resume parsing and ATS auditing, target role skill gap analysis, AI mock interview generation, personalized study schedule generation, and historical snapshot tracking into a unified, distraction-free interface.
+
+---
+
+## Live Demo & Deployment Status
+
+- **Live Application:** [https://ai-academic-career-copilot.vercel.app/](https://ai-academic-career-copilot.vercel.app/)
+- **Backend API Health Check:** [https://ai-academic-career-copilot.onrender.com/api/health](https://ai-academic-career-copilot.onrender.com/api/health)
+- **Deployment Status:**
+  - **Frontend:** Deployed and actively accessible on Vercel.
+  - **Backend:** Deployed and healthy on Render, responding to health probes and API requests.
+  - **Live Verification:** Core application workflows (user authentication, resume parsing, ATS auditing, skill gap evaluation, interview question generation, and study plan creation) have been manually tested on the live deployment.
+
+> [!WARNING]
+> **Demo Data Persistence & Ephemeral Storage Notice:**
+> - **Render Free Cold Starts:** Render spins down free web service instances after 15 minutes of inactivity. When visiting the demo after an idle period, the initial request may take ~45–60 seconds while the container spins up.
+> - **Ephemeral Storage:** The deployed backend runs on Render's Free tier using a container-local SQLite database. Container storage on this tier is **ephemeral**. Accounts created, resumes uploaded, and saved history records will reset whenever the Render container is restarted or redeployed. This demo is intended for academic, recruiter, and portfolio demonstration and does not provide durable or production-grade persistence.
+
+---
+
+## Deployment Architecture
+
+The live application is hosted using a decoupled full-stack architecture:
+
+- **Frontend (Vercel):** The React 18 + TypeScript single-page application (SPA) is built with Vite and hosted on Vercel's edge network.
+- **Backend (Render):** The Python 3.11 + Flask API is hosted as a web service on Render, served via Gunicorn WSGI using an application factory pattern (`gunicorn --chdir backend "app:create_app()"`).
+- **API Proxy Routing:** Vercel routes all `/api/*` traffic directly to the live Render backend via an edge rewrite rule (`frontend/vercel.json`), enabling same-origin session cookie authentication (`SameSite=Lax`) without cross-domain browser restrictions.
+- **Database Initialization:** The SQLite database is automatically created and idempotently migrated on backend container startup (`python database/init_db.py`).
 
 ---
 
 ## Table of Contents
 
+- [Live Demo & Deployment Status](#live-demo--deployment-status)
+- [Deployment Architecture](#deployment-architecture)
 - [Screenshots](#screenshots)
 - [Core Modules](#core-modules)
 - [Technology Stack](#technology-stack)
@@ -370,13 +402,13 @@ Alternatively, Render can auto-configure these settings using the repository's r
 You can connect the Vercel frontend to the Render backend in one of two ways:
 
 **Option A (Recommended — Same-Origin Reverse Proxy):**
-1. In [`frontend/vercel.json`](frontend/vercel.json), replace `https://YOUR_RENDER_BACKEND_URL.onrender.com` with your live Render backend URL:
+1. [`frontend/vercel.json`](frontend/vercel.json) routes API requests to the live Render backend:
    ```json
    {
      "rewrites": [
        {
          "source": "/api/:path*",
-         "destination": "https://<your-render-service>.onrender.com/api/:path*"
+         "destination": "https://ai-academic-career-copilot.onrender.com/api/:path*"
        },
        {
          "source": "/(.*)",
