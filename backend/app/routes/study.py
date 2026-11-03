@@ -229,12 +229,14 @@ def regenerate_plan(plan_id: int):
             except (ValueError, TypeError):
                 return error_response(message="Invalid horizon_weeks.", status_code=400)
 
+        user_id = get_current_user_id()
         new_plan = StudyPlannerService.regenerate_plan_transactional(
             plan_id=plan_id,
             daily_hours=daily_hours,
             horizon_weeks=horizon_weeks,
             topics=topics,
             study_preferences=study_preferences,
+            user_id=user_id,
         )
 
         return success_response(

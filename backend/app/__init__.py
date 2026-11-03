@@ -1,4 +1,12 @@
 import os
+import sys
+from pathlib import Path
+
+# Ensure backend directory is in sys.path for direct imports
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 from flask import Flask
 from flask_cors import CORS
 
@@ -18,6 +26,11 @@ def create_app(config_name: str = None) -> Flask:
     app = Flask(__name__)
     config_class = config_by_name.get(config_name, config_by_name["default"])
     app.config.from_object(config_class)
+
+    # Support reverse proxy headers (e.g. Render, Vercel) in production
+    if config_name == "production":
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # If running in testing mode, ensure test database is initialized
     if app.config.get("TESTING"):

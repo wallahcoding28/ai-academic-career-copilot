@@ -1,6 +1,6 @@
 import { ApiResponse, HealthData, AuthUser, UserPreferences } from '../types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api';
 
 export function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   return fetch(url, {

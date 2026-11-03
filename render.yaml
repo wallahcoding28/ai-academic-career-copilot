@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ai-academic-career-copilot-api
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python database/init_db.py && gunicorn --chdir backend "app:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_PATH
+        value: database/copilot.db
+      - key: CORS_ORIGIN
+        value: http://localhost:5173
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+

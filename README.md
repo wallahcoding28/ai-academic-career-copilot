@@ -28,6 +28,7 @@ A full-stack, AI-powered web platform designed to support college students and e
 - [Database Initialization](#database-initialization)
 - [Running the Application](#running-the-application)
 - [Automated Testing & Verification](#automated-testing--verification)
+- [Deployment Guide (Vercel & Render)](#deployment-guide-vercel--render)
 - [Limitations & Project Status](#limitations--project-status)
 - [License](#license)
 
@@ -336,6 +337,72 @@ npm run build
 ```
 
 This runs `tsc` (TypeScript compiler) followed by `vite build`.
+
+---
+
+## Deployment Guide (Vercel & Render)
+
+The application is structured for cloud hosting using a decoupled architecture:
+- **Frontend:** [Vercel](https://vercel.com/) (React + Vite static SPA edge hosting)
+- **Backend:** [Render](https://render.com/) (Python 3.11 web service with Gunicorn WSGI)
+- **API Routing:** Vercel reverse proxy rewrite (`/api/:path*` -> Render backend)
+
+### 1. Backend Deployment (Render)
+
+1. Connect the GitHub repository to Render as a **Web Service**.
+2. Configure the build and start settings:
+   - **Environment:** `Python 3`
+   - **Build Command:** `pip install -r backend/requirements.txt`
+   - **Start Command:** `python database/init_db.py && gunicorn --chdir backend "app:app"`
+3. Add environment variables in the Render dashboard:
+   - `FLASK_ENV`: `production`
+   - `SECRET_KEY`: *(Generate a secure 32-byte secret key, e.g. using `python -c "import secrets; print(secrets.token_hex(32))"`)*
+   - `DATABASE_PATH`: `database/copilot.db`
+   - `CORS_ORIGIN`: `https://<your-frontend>.vercel.app`
+   - `SESSION_COOKIE_SECURE`: `true`
+   - `GEMINI_API_KEY`: *(Optional — omit to run free offline deterministic engines)*
+4. Once deployed, note your Render service URL (e.g., `https://ai-academic-career-copilot-api.onrender.com`).
+
+Alternatively, Render can auto-configure these settings using the repository's root [`render.yaml`](render.yaml) blueprint.
+
+### 2. Frontend Deployment (Vercel)
+
+You can connect the Vercel frontend to the Render backend in one of two ways:
+
+**Option A (Recommended — Same-Origin Reverse Proxy):**
+1. In [`frontend/vercel.json`](frontend/vercel.json), replace `https://YOUR_RENDER_BACKEND_URL.onrender.com` with your live Render backend URL:
+   ```json
+   {
+     "rewrites": [
+       {
+         "source": "/api/:path*",
+         "destination": "https://<your-render-service>.onrender.com/api/:path*"
+       },
+       {
+         "source": "/(.*)",
+         "destination": "/index.html"
+       }
+     ]
+   }
+   ```
+2. Import the repository into Vercel:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. Deploy the project. Vercel automatically proxies `/api/*` requests to the Render backend, providing same-origin cookie authentication without cross-domain restrictions.
+
+**Option B (Direct Cross-Origin API):**
+- In the Vercel dashboard under **Settings > Environment Variables**, set:
+  - `VITE_API_BASE_URL`: `https://<your-render-service>.onrender.com/api`
+- Ensure `CORS_ORIGIN` on Render is set to your Vercel deployment URL (e.g. `https://<your-app>.vercel.app`).
+- Set `SESSION_COOKIE_SAMESITE`: `None` and `SESSION_COOKIE_SECURE`: `true` on Render for cross-origin cookie authentication.
+
+### Demo Data Persistence & Free-Tier Notice
+
+> [!IMPORTANT]
+> - **Free-Tier Spin Down:** Render's free tier spins down web services after 15 minutes of inactivity. The first request after a sleep cycle will experience a ~45–60 second cold start while the container spins up.
+> - **Ephemeral Storage Limitation:** On Render's free plan, container filesystems are ephemeral. Any demo user accounts, uploaded resumes, or test evaluations created in the SQLite database will reset if the container is restarted or redeployed. For permanent demo data, attach a persistent disk volume on a paid plan or configure an external database.
 
 ---
 

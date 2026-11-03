@@ -591,7 +591,7 @@ class StudyPlannerService:
                 )
 
             db.commit()
-            return cls.get_plan_by_id(plan_id)
+            return cls.get_plan_by_id(plan_id, user_id=user_id)
 
         except Exception as ex:
             db.rollback()
@@ -606,6 +606,7 @@ class StudyPlannerService:
         horizon_weeks: Optional[int] = None,
         topics: Optional[List[str]] = None,
         study_preferences: Optional[Dict[str, Any]] = None,
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Transactional versioned regeneration:
@@ -616,7 +617,7 @@ class StudyPlannerService:
         5. Preserves historical sessions in parent plan.
         6. Rolls back on any failure.
         """
-        parent = cls.get_plan_by_id(plan_id)
+        parent = cls.get_plan_by_id(plan_id, user_id=user_id)
         if not parent:
             raise ValueError(f"Plan with id {plan_id} not found.")
 
